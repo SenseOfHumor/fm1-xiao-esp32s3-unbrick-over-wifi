@@ -83,13 +83,14 @@ never switches your network automatically.
 
 ## Start here
 
-Clone a published fork/release **containing this adaptation**. The original
+Clone this fork **containing the XIAO Wi-Fi adaptation**. The original
 upstream repository alone does not contain these Wi-Fi files. Do not use a
 path with spaces. Keep your work private until you separate device evidence
 and credentials from publishable source.
 
 ```bash
-cd /path/without/spaces/fm1-esp32-unbrick
+git clone https://github.com/SenseOfHumor/fm1-esp32-unbrick.git
+cd fm1-esp32-unbrick
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 sh tools/fetch_deps.sh

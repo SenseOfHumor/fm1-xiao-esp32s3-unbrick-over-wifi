@@ -78,23 +78,18 @@ substitute for original binary data or a complete write journal.
 .gitignore is a guardrail, not proof: previously tracked files bypass ignore
 rules. Review staged diffs and binary content before committing.
 
-## Commit is not push
+## Public source destination
 
-The user's request authorized a local source commit. It did not authorize
-uploading private archives or pushing to the original author's repository.
-Check git remote -v; origin can still point to dagnazty's upstream. To publish,
-create/use an explicitly chosen fork, review its target/privacy and push the
-source branch there. Never assume a folder called GitHub is already online.
+The owner subsequently authorized publication of the reviewed source to
+https://github.com/SenseOfHumor/fm1-esp32-unbrick, a fork of the original
+project. Private archives, credentials, generated builds and full device dumps
+remain local. Publishing source does not require publishing those files.
 
-Example future commands, after choosing YOUR OWN destination:
-
-```bash
-git remote -v
-# Add a destination you own; do not replace upstream by accident.
-git remote add publish YOUR_OWN_FORK_URL
-# Only when you explicitly intend to publish the reviewed source branch:
-git push publish feature/xiao-s3-wifi-recovery
-```
+The local `origin` remote points to the owner's fork; `upstream` preserves the
+original author's repository. Review `git remote -v` before subsequent pushes.
+GitHub authentication is supplied by the authenticated GitHub CLI/keychain,
+not by a credential committed to this repository. Public cloning requires no
+GitHub credentials. Each operator generates their own Wi-Fi and TCP secrets.
 
 No credential-bearing binary, private controller ZIP or archive is a public
 release asset. Reproduce firmware from reviewed source with new credentials.
