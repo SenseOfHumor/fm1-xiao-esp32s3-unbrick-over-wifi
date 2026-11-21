@@ -173,6 +173,7 @@ bool jl_ensure_loader(void) {
 
     loader_running = true;
     last_cmd_us = time_us_64();
+    dlog("STATE LOADER_UPLOADED");
     dlog("JL: loader running");
 
     // Read-only query; falls back to 512-byte reads if unsupported.

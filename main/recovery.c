@@ -172,6 +172,7 @@ void recovery_run(void) {
     bool alive = false, was_alive = false;
     uint64_t last_status = time_us_64();
 
+    dlog("STATE USB_KEY_SENDING");
     dlog("KEY: sending 0x%04X, polarity A (D+ clock, D- data). Switch the FM-1 ON now.", USB_KEY_WORD);
     for (;;) {
         key_send_packet();
@@ -187,6 +188,8 @@ void recovery_run(void) {
                  (unsigned long)packets);
             if (s == 2 || wait_dp_high(DP_HIGH_TIMEOUT_MS)) {
                 dlog("PULSE: D+ high (ROM pull-up), sending 4 us pulses every 1 ms");
+                dlog("STATE ROM_ACK_RECEIVED");
+                dlog("STATE OSCILLATOR_CALIBRATION");
                 pulses(HANDOFF_PULSE_MS, true);
                 return;
             }
@@ -254,5 +257,7 @@ void recovery_init(void) {
     gpio_set_drive_capability(PIN_DM, GPIO_DRIVE_CAP_0);
     bus_listen();
     esp_rom_delay_us(1000);
+    if (!dp() && !dm()) dlog("STATE USB_BUS_IDLE");
+    else dlog("STATE USB_BUS_NOT_IDLE");
     dlog("bus idle: D+=%d D-=%d (both 0 with nothing attached)", dp(), dm());
 }

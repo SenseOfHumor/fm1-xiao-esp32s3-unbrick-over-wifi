@@ -10,14 +10,15 @@
 #include <string.h>
 
 #include "compat.h"
-#include "driver/uart.h"
+#include "net_transport.h"
+#include "freertos/semphr.h"
 #include "esp_attr.h"
 #include "esp_system.h"
 #include "host.h"
 #include "jieli_uboot.h"
 #include "log.h"
 
-#define PORT UART_NUM_0
+#define PORT 0
 #define BAUD 115200             // the CH340 + macOS driver on the board this was made for drops bytes above it
 #define PAYLOAD_TIMEOUT_MS 3000 // a wsec / ldr / memw payload that stops arriving is given up (bytes were lost)
 #define REQ_LINE_MAX 64
@@ -28,6 +29,8 @@ RTC_NOINIT_ATTR uint32_t fm1_rekey_magic;      // main.c: "KEY1" = force the USB
 // receive task -> worker: one request line at a time, plus the payload of wsec / ldr / memw
 static char rx_line[REQ_LINE_MAX];
 static unsigned rx_len;
+static bool rx_overflow;
+static SemaphoreHandle_t parser_lock;
 static uint8_t sector[JL_SECTOR_SIZE];
 static unsigned sector_fill, rx_expect;
 static bool rx_binary;
@@ -38,7 +41,7 @@ static volatile bool req_pending;
 static uint8_t io[JL_READ_MAX];
 
 static void tx_bytes(const void *data, uint32_t len) {
-    uart_write_bytes(PORT, data, len);
+    net_write(data, len);
 }
 
 static void tx_line(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -85,13 +88,15 @@ static void rx_bytes(const uint8_t *buf, unsigned len) {
         if (c == '\r') continue;
         if (c != '\n') {
             if (rx_len < REQ_LINE_MAX - 1) rx_line[rx_len++] = c;
+            else rx_overflow = true;
             continue;
         }
+        if (rx_overflow) { rx_len=0; rx_overflow=false; tx_line("ERR line-too-long"); continue; }
         rx_line[rx_len] = 0;
         rx_len = 0;
         if (!strcmp(rx_line, "rekey")) {
             tx_line("OK rekey");
-            uart_wait_tx_done(PORT, pdMS_TO_TICKS(100));
+            vTaskDelay(pdMS_TO_TICKS(100));
             fm1_rekey_magic = 0x4B455931;
             esp_restart();
         }
@@ -130,34 +135,22 @@ static void rx_bytes(const uint8_t *buf, unsigned len) {
     }
 }
 
-static void rx_task(void *arg) {
-    (void)arg;
-    uint8_t buf[512];
-    for (;;) {
-        int n = uart_read_bytes(PORT, buf, sizeof(buf), pdMS_TO_TICKS(20));
-        if (n > 0) rx_bytes(buf, (unsigned)n);
-        if (rx_binary && time_us_64() - rx_binary_us > PAYLOAD_TIMEOUT_MS * 1000ull) {
-            // Bytes were lost on the way in: nothing was written (the request never fired). The same reply as
-            // a CRC mismatch, which the client may safely retry.
-            dlog("PROTO: payload stopped at %u of %u bytes - dropped", sector_fill, rx_expect);
-            rx_binary = false;
-            tx_line("ERR crc short");
-        }
-    }
+void proto_receive(const uint8_t *data, unsigned len) {
+    xSemaphoreTake(parser_lock,portMAX_DELAY);
+    if (rx_binary && time_us_64()-rx_binary_us > PAYLOAD_TIMEOUT_MS*1000ull) {
+        rx_binary=false; rx_len=0; tx_line("ERR crc short");
+        // Drop the entire ambiguous frame; do not parse payload bytes as commands.
+    } else rx_bytes(data,len);
+    xSemaphoreGive(parser_lock);
 }
-
+void proto_disconnect(void) {
+    xSemaphoreTake(parser_lock,portMAX_DELAY);
+    req_pending=false; rx_binary=false; rx_len=sector_fill=rx_expect=0; rx_overflow=false;
+    xSemaphoreGive(parser_lock);
+}
 void proto_start(void) {
-    uart_config_t cfg = {
-        .baud_rate = BAUD,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    ESP_ERROR_CHECK(uart_driver_install(PORT, 16384, 16384, 0, NULL, 0));
-    ESP_ERROR_CHECK(uart_param_config(PORT, &cfg));
-    xTaskCreatePinnedToCore(rx_task, "proto_rx", 6144, NULL, 4, NULL, 0);
+    parser_lock=xSemaphoreCreateMutex(); configASSERT(parser_lock);
+    net_start();
 }
 
 //--------------------------------------------------------------------+
@@ -175,6 +168,10 @@ static uint32_t crc32_update(uint32_t crc, const uint8_t *p, uint32_t len) {
 }
 
 static void do_write_sector(uint32_t addr, uint32_t crc) {
+#ifndef CONFIG_FM1_ALLOW_FLASH_WRITES
+    tx_line("ERR writes-disabled");
+    return;
+#endif
     uint32_t got = crc32_update(0, sector, JL_SECTOR_SIZE);
     if (got != crc) {
         tx_line("ERR crc %08lX", (unsigned long)got);
@@ -184,8 +181,16 @@ static void do_write_sector(uint32_t addr, uint32_t crc) {
         tx_line("ERR range");
         return;
     }
-    dlog("PROTO: write sector %06lX", (unsigned long)addr);
-    tx_line(jl_flash_write_sector(addr, sector) ? "OK" : "ERR write");
+    jl_info_t identity;
+    if (!jl_info(&identity) || identity.chip_key != JL_CHIP_KEY || identity.dev_type != 3 ||
+        (identity.flash_id != JL_FLASH_ID && identity.flash_id != 0xB36014)) {
+        tx_line("ERR identity");
+        return;
+    }
+    dlog("WRITE_STARTED sector=%06lX", (unsigned long)addr);
+    bool ok=jl_flash_write_sector(addr, sector);
+    dlog("%s sector=%06lX", ok ? "WRITE_VERIFIED" : "WRITE_FAILED_UNKNOWN", (unsigned long)addr);
+    tx_line(ok ? "OK" : "ERR write");
 }
 
 static void do_read(uint32_t addr, uint32_t len) {
@@ -295,7 +300,7 @@ static void do_jump(uint32_t addr, uint32_t arg) {
     else tx_line("ERR jump ms=%lu", (unsigned long)ms);
 }
 
-void proto_poll(void) {
+static void __attribute__((unused)) poll_locked(void) {
     if (!req_pending) {
         jl_keepalive();
         return;
@@ -328,6 +333,7 @@ void proto_poll(void) {
         } else if (!jl_info(&info)) {
             tx_line("ERR info");
         } else {
+            dlog("STATE FLASH_IDENTIFIED");
             dlog("PROTO: chip key %04X, device type %u, flash id %06lX", info.chip_key, info.dev_type,
                  (unsigned long)info.flash_id);
             tx_line("OK key=%04X type=%u id=%06lX", info.chip_key, info.dev_type, (unsigned long)info.flash_id);
@@ -354,4 +360,14 @@ void proto_poll(void) {
     } else {
         tx_line("ERR unknown");
     }
+}
+
+void proto_poll(void) {
+    xSemaphoreTake(parser_lock,portMAX_DELAY);
+#ifdef CONFIG_FM1_USB_RECOVERY
+    poll_locked();
+#else
+    if (req_pending) { req_pending=false; tx_line("ERR usb-recovery-disabled"); }
+#endif
+    xSemaphoreGive(parser_lock);
 }

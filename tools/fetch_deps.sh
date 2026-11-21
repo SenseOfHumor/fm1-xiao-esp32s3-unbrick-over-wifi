@@ -20,7 +20,7 @@ fetch() {   # fetch NAME URL COMMIT
 }
 
 fetch jl-uboot-tool https://github.com/kagaimiq/jl-uboot-tool.git adb3f18889e88ac512ce0a3c4d8cc3d3cb30696a
-fetch MvaveFM1Unbricker https://github.com/Quixotic7/MvaveFM1Unbricker.git 517b9387e62e908115e5eec66c32d0ac3289f039
+fetch MvaveFM1Unbricker https://github.com/Quixotic7/MvaveFM1Unbricker.git 331f848c96842bd7e3d4ab4bcdc05604fe64f9a2
 
 want=d41da6126760c9d66660bcc0cac8d27d221806c5e369a8036921efe68dca5376
 src=$tp/jl-uboot-tool/data/loaderblobs/usb/wl82loader.bin

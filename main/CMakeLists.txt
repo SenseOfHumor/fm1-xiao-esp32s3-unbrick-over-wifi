@@ -10,7 +10,7 @@ if(NOT got STREQUAL LOADER_SHA256)
     message(FATAL_ERROR "main/wl82loader.bin has sha256 ${got}, expected ${LOADER_SHA256}")
 endif()
 
-idf_component_register(SRCS "main.c" "log.c" "recovery.c" "host.c" "jieli_uboot.c" "proto.c"
+idf_component_register(SRCS "main.c" "log.c" "recovery.c" "host.c" "jieli_uboot.c" "proto.c" "net_transport.c" "wire_protocol.c" "net_selftest.c"
                        INCLUDE_DIRS "."
-                       REQUIRES usb esp_driver_uart esp_driver_gpio esp_timer esp_hw_support
+                       REQUIRES mbedtls esp_wifi esp_event esp_netif nvs_flash lwip usb esp_driver_uart esp_driver_gpio esp_timer esp_hw_support
                        EMBED_FILES "wl82loader.bin")

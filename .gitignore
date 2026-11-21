@@ -1,19 +1,38 @@
-# fetched by tools/fetch_deps.sh (not ours to ship)
+# Fetched third-party material, not ours to redistribute
 /third_party/
 /main/wl82loader.bin
 
-# ESP-IDF
-/build/
+# Credential-bearing ESP-IDF output and generated configuration
+/build*/
 /sdkconfig
-/sdkconfig.old
+/sdkconfig.*
+!/sdkconfig.defaults
 /managed_components/
 /dependencies.lock
 
-# what you make while recovering: FM-1 dumps, the board's own backup, logs (they hold your device's data)
+# Actual credentials and deliberate rotation copies
+/wifi_credentials.json
+/wifi_credentials.json.*
+
+# Per-device data, logs, plans, controller bundles, preservation archives
 /backups/
 /backup/
 /logs/
+/reports/
+/artifacts/
+/private/
+*.bin
+*.elf
+*.map
 *.fwsc
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+/docs/references/*.pdf
 
+# Local tools/caches
+/.venv/
 __pycache__/
+.pytest_cache/
 .DS_Store

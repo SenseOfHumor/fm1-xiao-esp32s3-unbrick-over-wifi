@@ -1,0 +1,14 @@
+{
+  "case_date": "2026-11-21",
+  "bridge": "Seeed XIAO ESP32-S3 Sense",
+  "architecture": "Wi-Fi controller; native TP8 D+ / TP7 D- / GND to external female USB-C breakout; no VBUS source; built-in XIAO USB-C empty in recovery",
+  "evidence": "Verified against saved real fresh/final readbacks and 286 journal events; raw originals/logs remain private",
+  "normal_boot": "Owner reported success after shutdown and normal restart; no independent screen/audio/long-term test claimed",
+  "electrical_limit": "Generic breakout CC component values/circuit and multimeter verification were not established in the case",
+  "original_sha256": "68c5c500ed28aa73b6d9ece9ba8e12795a4985625fa76c77e66d28cfdf3ddea2",
+  "package_sha256": "db1642b2b6fa5c2cccb11ffd13878068bb28601678d3644049f99dc40e7edb8a",
+  "final_sha256": "872d9c4c7ccce4520ba94bbc60c3d4dbc43abfee77ce686f79aa510c66f02b79",
+  "identity": "OK key=980F type=3 id=856014",
+  "verified_sectors": 143,
+  "protected_regions_unchanged": true
+}

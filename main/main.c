@@ -23,6 +23,10 @@ static void worker(void *arg) {
     (void)arg;
     dlog("fm1-esp32-unbrick: D+=GPIO20 D-=GPIO19 (the S3's own USB port), data on UART0");
     dlog("loader %s", jl_loader_builtin() ? "built in (24064 bytes)" : "MISSING: size mismatch");
+#ifndef CONFIG_FM1_USB_RECOVERY
+    dlog("USB_RECOVERY_DISABLED: native USB remains available for setup");
+    for (;;) { proto_poll(); vTaskDelay(pdMS_TO_TICKS(10)); }
+#endif
     recovery_init();
 
     bool force_key = fm1_rekey_magic == REKEY_MAGIC;
@@ -41,6 +45,7 @@ static void worker(void *arg) {
 
     uint64_t t_release = time_us_64();
     recovery_release_bus();
+    dlog("STATE USB_HOST_HANDOFF");
     fm1_host_start();
     dlog("HANDOFF: pulses stopped, OTG host started in %llu us", (unsigned long long)(time_us_64() - t_release));
 
@@ -52,6 +57,7 @@ static void worker(void *arg) {
 }
 
 void app_main(void) {
+    dlog("STATE POWERED");
     proto_start();
     xTaskCreatePinnedToCore(worker, "worker", 8192, NULL, 3, NULL, 1);
 }

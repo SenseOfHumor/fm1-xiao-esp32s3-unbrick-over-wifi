@@ -221,6 +221,7 @@ static bool probe_descriptors(void) {
         return false;
     }
     dlog("DEVICE DESCRIPTOR OK");
+    dlog("STATE USB_DEVICE_ENUMERATED");
     dlog("  VID=%04X PID=%04X bcdDevice=%04X bcdUSB=%04X", dd->idVendor, dd->idProduct, dd->bcdDevice, dd->bcdUSB);
     is_v15 = dd->idVendor == FM1_VID && dd->idProduct == FM1_V15_PID;
     if (is_v15) dlog("  stock FM-1 application: no soft key on this board; power-cycle the FM-1 under the key");
@@ -341,6 +342,7 @@ void fm1_host_task(void) {
         if (probe_inquiry()) {
             inquiry_tries = 0;
             uboot_ready = true;
+            dlog("STATE UBOOT_IDENTIFIED");
             dlog("UBOOT READY: enumerated and answered INQUIRY.");
         } else if (inquiry_tries == 0) {
             dlog("UBOOT: INQUIRY never accepted.");

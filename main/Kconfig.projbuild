@@ -1,0 +1,26 @@
+menu "XIAO Wi-Fi recovery"
+config FM1_AP_SSID
+    string "SoftAP SSID"
+    default "FM1-Recovery"
+config FM1_AP_PASSWORD
+    string "WPA2 password (8..63 characters)"
+    default ""
+config FM1_SESSION_SECRET
+    string "TCP authentication secret (at least 24 characters)"
+    default ""
+config FM1_TCP_PORT
+    int "TCP port"
+    range 1024 65535
+    default 3333
+config FM1_USB_RECOVERY
+    bool "Enable native USB recovery (disconnect Mac USB first; verified wiring required)"
+    default n
+config FM1_TRANSPORT_SELFTEST
+    bool "Run on-board TCP loopback checks at boot (no FM-1 needed)"
+    depends on !FM1_USB_RECOVERY
+    default y
+config FM1_ALLOW_FLASH_WRITES
+    bool "Permit firmware-sector writes after approved dry-run"
+    depends on FM1_USB_RECOVERY
+    default n
+endmenu
